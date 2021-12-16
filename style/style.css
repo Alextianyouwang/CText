@@ -1,0 +1,194 @@
+body{
+  margin: 0px;
+  border: 0px;
+  padding: 0px;
+  background-color :rgb(20,20,20);
+  font-family: Courier New;
+
+}
+.type0
+{
+  border: none;
+  background-color: rgb(20,20,20);
+  height: 50px;
+   color: rgb(180,180,180);
+  font-family: monospace;
+  font-size: 20px;
+  transition-duration: 0.1s;
+
+}
+.type0:hover
+{
+  background-color: rgb(40,40,40);
+  color:  rgb(100,100,100);
+}
+.full_width
+{
+  width: 1000px;
+}
+.align
+{
+  display: flex;
+  justify-content: center;
+}
+.left_pedding
+{
+
+    float: left;
+    padding-left: 200px;
+}
+.right_align
+{
+    float: right;
+    padding-right: 230px;
+}
+.about
+{
+  height: 50px;
+  background-color: rgb(40,40,40);
+  text-align: right;
+}
+
+.title
+{
+  position:relative;;
+  height: 250px;
+  text-align: center;
+  text-shadow: 3px 3px #222;
+
+}
+.title h1
+{
+  position: absolute;
+  bottom: 25px;
+  right: 170px;
+  margin: 0px;
+  padding-top: 50px;
+  font-size: 50px;
+  color: rgb(240,240,240);
+  opacity: 0.8;
+}
+.title img[alt = "CText"]
+{
+
+  filter: invert(5%);
+  filter: drop-shadow(5px 5px 5px #222);
+  opacity: 0.8;
+  position: absolute;
+  bottom: 80px;
+  right: 180px;
+  width: 130px;
+  height: 130px;
+}
+.content
+{
+  height:inherit;
+  padding-bottom: 80px;
+
+  background: rgb(40,40,40);
+
+}
+.canvas
+{
+  text-align: center;
+  padding: 30px;
+}
+.input_area
+{
+  padding-top: 10px;
+  height: 300px;
+}
+.param
+{
+
+  padding: 5px;
+}
+.param_name
+{
+
+  color: rgb(180,180,180);
+  font-family: monospace;
+  font-size: 18px;
+}
+.slider
+{
+  display: block;
+  margin-left: 400px;
+}
+.slider input
+{
+  -webkit-appearance:none;
+  height: 3px;
+  width: 250px;
+  background: rgb(100,100,100);
+  outline: none;
+  border: none;
+
+}
+.slider input::-webkit-slider-thumb
+{
+    -webkit-appearance:none;
+    height: 20px;
+    width: 20px;
+    background: rgb(140,140,140);
+    border: 2px solid rgb(20,20,20);
+    cursor: pointer;
+}
+.text_Inputs
+{
+  display: none;
+  text-align: center;
+  height: 300px;
+}
+.text_Inputs textarea
+{
+  background-color: rgb(80,80,80);
+  font-family: monospace;
+  color: rgb(180,180,180);
+  border: none;
+  resize: none;
+}
+.footer
+{
+  position: relative;
+  height: 300px;
+  background-color: rgb(20,20,20);
+}
+
+.footer img[alt = WebGL]
+{
+  filter: grayscale(70%);
+  width : 140px;
+  height: 60px;
+  left: 200px;
+  top:110px;
+  position: absolute;
+}
+.footer img[alt = WebGL]:hover
+{
+  filter: grayscale(20%);
+}
+.footer img[alt = NPM]
+{
+  filter: grayscale(70%);
+  width : 140px;
+  height: 60px;
+  left: 630px;
+  top:110px;
+  position: absolute;
+}
+.footer img[alt = NPM]:hover
+{
+  filter: grayscale(20%);
+}
+.finaline
+{
+  width: 100%;
+  
+  text-align: center;
+  font-family: monospace;
+  font-size: 18px;
+  color: rgb(40,40,40);
+  background-color: rgb(80,80,80);
+
+}

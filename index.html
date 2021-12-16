@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="CText" content="A web interface generates graphics by visualizing text">
+    <title>CText</title>
+
+    <link rel="stylesheet" href="style/style.css"></link>
+    <script src="scripts/compromise.js"></script>
+    <script id = "vertex-shader"type="x-shader/x-vertex">
+      precision mediump float;
+      attribute vec3 vertPosition;
+      varying vec3 vPos;
+      void main()
+        {
+          gl_Position = vec4(vertPosition,1.0);
+          vPos = vertPosition;
+        }
+    </script>
+    <script id = "fragment-shader"type="x-shader/x-fragment">
+      precision highp float;
+      varying vec3 vPos;
+
+      uniform float cell_density;
+      uniform float blend;
+      uniform float edge_one;
+      uniform float edge_two;
+      uniform float global_displace_multiplier;
+      uniform float circle_distortion_factor;
+      uniform float subdivisions;
+      uniform float RB_seperation_scale;
+      uniform float noise_weight;
+      uniform float displacementMapX;
+
+      vec2 GetUV(vec3 vPos){
+        vec2 uv = vec2(vPos.x,vPos.y);
+        return (vPos.xy + vec2(1,1))/vec2(2,2);
+      }
+     highp float rand(vec2 co, float seed){
+        highp float a = 12.9898;
+        highp float b = 78.233;
+        highp float c = 43758.5453;
+        highp float dt= dot(co.xy,vec2(a + seed,b + seed));
+        highp float sn= mod(dt,3.1415926535);
+        return fract(sin(sn) * c);
+      }
+      float noise (vec2 uv,float seed){
+
+        vec2 i = floor(uv);
+          vec2 f = fract(uv);
+
+          // Four corners in 2D of a tile
+          float a = rand(i,seed);
+          float b = rand(i + vec2(1.0, 0.0),seed);
+          float c = rand(i + vec2(0.0, 1.0),seed);
+          float d = rand(i + vec2(1.0, 1.0),seed);
+
+          vec2 u = f * f * (3.0 - 2.0 * f);
+
+          return mix(a, b, u.x) +
+                  (c - a)* u.y * (1.0 - u.x) +
+                  (d - b) * u.x * u.y;
+      }
+      float circleSDF (vec2 uv){
+          return distance (vec2 (0,0),uv);
+      }
+     highp vec2 subdividedUV(vec2 uv,float factor){
+        return uv *= vec2(factor,factor);
+      }
+      float gradient(vec2 uv,float rand){
+        float g = 0.0;
+        if (rand < 0.25)
+        {
+          g = uv.x;
+        }
+        else if(rand >= 0.25 && rand < 0.5)
+        {
+          g = 1.0 - uv.x;
+        }
+        else if (rand >= 0.5 && rand < 0.75)
+        {
+          g = uv.y;
+        }else if (rand >= 0.75)
+        {
+          g = 1.0- uv.y;
+        }
+        return g;
+      }
+
+      float map(float value, float min1, float max1, float min2, float max2){
+          return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
+      }
+
+      void main()
+      {
+        vec4 finalColor = vec4(0,0,0,0);
+
+        //----------------------------- Default UV space;
+        vec2 uv = GetUV(vPos);
+
+        float rnoise = noise(vec2(uv.x+ displacementMapX * 1000.0 ,uv.y+ displacementMapX* 1000.0),235838.0 + displacementMapX);
+        float gnoise = noise(vec2(uv.x+ displacementMapX * 1000.0 ,uv.y+ displacementMapX* 1000.0),341.0+ displacementMapX);
+        vec2 displacementMap = vec2(rnoise,gnoise);
+        displacementMap -= vec2(0.5,0.5);
+        displacementMap *= vec2 (2.0,2.0);
+        //-----------------------------Default UV space;
+
+
+
+        //-----------------------------Center-Offseted UV space;
+        uv -= vec2(0.5,0.5);
+        uv -= vec2 (1.0/cell_density/2.0,1.0/cell_density/2.0);
+        //-----------------------------Center-Offseted UV space;
+
+
+
+        //-----------------------------Scaled UV space;
+        uv = subdividedUV(uv,cell_density);
+
+        uv += displacementMap*cell_density * global_displace_multiplier;
+        vec2 subDUV = subdividedUV(uv,subdivisions);
+        //-----------------------------Scaled UV space;
+
+
+
+        //-----------------------------Fractioned UV space;
+        vec2 fractedUV = fract(uv);
+        vec2 fractedSubDUV = fract(subDUV);
+        //-----------------------------Fractioned UV space;
+
+
+        //-----------------------------Chunked UV space;
+        vec2 flooredUV = uv - fractedUV;
+        vec2 flooredSubDUV = floor(subDUV);
+       highp  float chunkRandom = rand(flooredSubDUV ,1.0+ displacementMapX);
+        //-----------------------------Chunked UV space;
+
+        //-----------------------------Centered Fractioned UV space;
+        vec2 centeredUV = fractedUV - vec2(0.5,0.5);
+        float rscaledNoise = noise(uv,2735.0+ displacementMapX);
+        float gscaledNoise = noise(uv,68435.0+ displacementMapX);
+        float bscaledNoise = noise(uv,5694.0+ displacementMapX);
+        float random = rand(centeredUV,1021.0+ displacementMapX) * noise_weight;
+
+        //-----------------------------Centered Fractioned UV space;
+
+        vec2 distortion = vec2(RB_seperation_scale,RB_seperation_scale);
+
+        float rpattern = circleSDF(centeredUV + distortion);
+        rpattern = mix (rpattern,gradient(fractedSubDUV + distortion,chunkRandom),circle_distortion_factor);
+
+        float gpattern = circleSDF(centeredUV );
+        gpattern = mix (gpattern,gradient(fractedSubDUV,chunkRandom),circle_distortion_factor);
+
+        float bpattern = circleSDF(centeredUV - distortion);
+        bpattern = mix (bpattern,gradient(fractedSubDUV - distortion,chunkRandom),circle_distortion_factor);
+
+        vec4 patternColor = vec4(rpattern,gpattern,bpattern,1.0);
+
+        patternColor += vec4(random,random,random,1);
+
+        vec4 noiseColor = max(vec4(rscaledNoise + random,gscaledNoise + random,bscaledNoise + random,1.0), patternColor );
+
+        finalColor = mix(patternColor,noiseColor,blend);
+
+        if (edge_one<edge_two)
+        {
+          finalColor = smoothstep(edge_one,edge_two,finalColor);
+        }
+        else
+        {
+          finalColor =vec4 (1,1,1,2)-smoothstep(edge_two,edge_one,finalColor);
+        }
+
+        gl_FragColor = finalColor ;
+      }
+    </script>
+  </head>
+
+  <body onload = "Initialize()">
+
+    <div class="about">
+      <!-- <button  class="type0"  type="button" name="about">About</button> -->
+    </div>
+    <div class="align">
+      <div class="title full_width">
+
+        <img src="Images/Splash_slice.png" alt="Splash">
+        <img src="Images/CText_small.png" alt="CText">
+        <h1> CText </h1>
+      </div>
+    </div>
+
+    <div class="align">
+
+
+      <div class="content full_width">
+
+        <div class="canvas">
+          <canvas id = "renderer" width = "800" height = "800"></canvas>
+        </div>
+        <div class="controls">
+          <div class="button">
+            <button onclick="OnSwitchingControl()" class="type0 full_width"  type="button"  name="switcher">
+              Use Text Input
+            </button>
+          </div>
+          <div class="parameters input_area">
+            <div class="a param">
+              <span class="param_name left_pedding" >Zoom</span>
+              <span name = "cell_density" class="param_name right_align">1</span>
+              <span class="slider"><input type="range"  name = "cell_density" min ="1.0" max = "10.0" = value="1" step="1"></span>
+
+            </div>
+            <div class="c param">
+              <span class="param_name left_pedding">Level Edge One</span>
+              <span name = "edge_one"class="param_name right_align">0</span>
+              <span class="slider"><input type="range"  name = "edge_one" min ="0" max = "1.0" = value="0" step="0.01"></span>
+
+            </div>
+            <div class="d param">
+              <span class="param_name left_pedding">Level Edge Two</span>
+              <span name = "edge_two"class="param_name right_align">1</span>
+              <span class="slider"><input type="range"  name = "edge_two" min ="0" max = "1.0" = value="1" step="0.01"></span>
+
+            </div>
+            <div class="e param">
+              <span class="param_name left_pedding">Displacement</span>
+              <span name = "displace_multiplier"class="param_name right_align">1</span>
+              <span class="slider"><input type="range" name = "displace_multiplier" min ="0" max = "1.0" = value="0" step="0.01"></span>
+
+            </div>
+            <div class="f param">
+              <span class="param_name left_pedding">Seed</span>
+              <span name = "displacement_X"class="param_name right_align">1</span>
+              <span class="slider"><input type="range"  name = "displacement_X" min ="0" max = "1" = value="0" step="0.01"></span>
+
+            </div>
+            <div class="g param">
+              <span class="param_name left_pedding">Flatten</span>
+              <span name = "circle_distortion_factor"class="param_name right_align">1</span>
+              <span class="slider"><input type="range"  name = "circle_distortion_factor" min ="0" max = "1" = value="0" step="0.01"></span>
+
+            </div>
+            <div class="h param">
+              <span class="param_name left_pedding">Subdivision</span>
+              <span name = "subdivisions"class="param_name right_align">1</span>
+              <span class="slider"><input type="range" name = "subdivisions" min ="1" max = "5" = value="1" step="1"></span>
+
+            </div>
+            <div class="i param">
+              <span class="param_name left_pedding">Chrome Shift</span>
+              <span name = "RG_seperation"class="param_name right_align">1</span>
+              <span class="slider"><input type="range" name = "RG_seperation" min ="0" max = "0.3" = value="0.1" step="0.01"></span>
+
+            </div>
+            <div class="j param">
+              <span class="param_name left_pedding">Dither</span>
+              <span name = "noise_weight"class="param_name right_align">1</span>
+              <span class="slider"><input type="range" name = "noise_weight" min ="0" max = "0.5" = value="0.1" step="0.01"></span>
+
+            </div>
+            <div class="b param">
+              <span class="param_name left_pedding">Blend Noise</span>
+              <span name = "blend"class="param_name right_align">1</span>
+              <span class="slider"><input type="range"name = "blend" min ="0" max = "1" = value="0" step="0.01"></span>
+
+            </div>
+          </div>
+
+        </div>
+
+        <div class="text_Inputs input_area">
+          <textarea name="text_Inputs" rows="19" cols="92">
+
+          </textarea>
+        </div>
+
+        <div class="clear">
+
+          <button onclick="Clear()" class="type0 full_width"  type="button" name="clear">Reset</button>
+        </div>
+
+
+      </div>
+
+
+    </div>
+    <div class="align">
+      <div class="footer full_width">
+        <a href= "https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Tutorial/Getting_started_with_WebGL"target="_blank"><img src="Images/WebGL.png" alt="WebGL"></a>
+        <a href="https://www.npmjs.com/package/compromise"target="_blank"><img src="Images/NPM.png" alt="NPM"></a>
+      </div>
+
+
+    </div>
+
+    <div class="align">
+      <div class="finaline">
+        Copyright © 2021 Alex Wang
+      </div>
+    </div>
+
+
+    <script type="text/javascript" src = "scripts/main.js"></script>
+    <script type="text/javascript" src = "scripts/shader.js"></script>
+    <script type="text/javascript" src = "scripts/nlp.js">  </script>
+
+  </body>
+</html>
